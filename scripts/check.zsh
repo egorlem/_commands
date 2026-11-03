@@ -16,7 +16,7 @@ typeset -g REG=$ROOT/registry.tsv
 typeset -i failed=0
 typeset -a entries
 typeset -A meta
-typeset -A registered
+typeset -A registered artifact_source artifact_version
 
 __fail() {
   print -r -- "FAIL: $*"
@@ -93,6 +93,9 @@ else
         ;;
     esac
 
+    artifact_source[$base]=${meta[Completion-Source]}
+    artifact_version[$base]=$version
+
     if grep -qF "'\*" "$f"; then
       __fail "$base: escaped repeatable star; use '*--opt[...]'"
     fi
@@ -107,7 +110,7 @@ if [[ ! -f $REG ]]; then
   __fail "missing registry.tsv"
 else
   typeset header=1
-  while IFS=$'\t' read -r command source version level updated file; do
+  while IFS=$'\t' read -r command source version updated file; do
     if (( header )); then
       header=0
       continue
@@ -136,6 +139,12 @@ else
         __fail "registry: source must be ai or upstream for '$command'"
         ;;
     esac
+    if [[ ${artifact_source[$file]:-} != $source ]]; then
+      __fail "registry: source mismatch for '$file' (file=${artifact_source[$file]:-missing}, registry=$source)"
+    fi
+    if [[ ${artifact_version[$file]:-} != $version ]]; then
+      __fail "registry: version mismatch for '$file' (file=${artifact_version[$file]:-missing}, registry=$version)"
+    fi
     registered[$file]=1
   done < "$REG"
 
